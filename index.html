@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>To‑Do List con Foto</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ff69b4" />
+  <style>
+    body{
+      margin:0;
+      font-family: 'Comic Sans MS', 'Comic Neue', cursive, sans-serif;
+      background:#fdfdfd;
+      color:#444;
+      display:grid;
+      place-items:center;
+      padding:40px;
+    }
+    .app{
+      width:min(700px, 92vw);
+      background:#fff;
+      border-radius:20px;
+      box-shadow:0 8px 20px rgba(0,0,0,.1);
+      padding:24px;
+    }
+    h1{
+      font-size:28px;
+      text-align:center;
+      margin:0 0 20px;
+      color:#ff69b4;
+    }
+    form{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:10px;
+      margin-bottom:20px;
+    }
+    input[type="text"]{
+      padding:12px 16px;
+      font-size:16px;
+      border:2px solid #ffd6e7;
+      border-radius:12px;
+      outline:none;
+    }
+    input[type="text"]:focus{
+      border-color:#ff69b4;
+    }
+    button{
+      border:none;
+      cursor:pointer;
+      background:#ff69b4;
+      color:white;
+      padding:12px 18px;
+      border-radius:12px;
+      font-weight:bold;
+      font-size:16px;
+    }
+    ul{list-style:none; padding:0; margin:0;}
+    li.todo{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px;
+      border:2px solid #ffd6e7;
+      border-radius:14px;
+      margin-top:10px;
+      background:#fff8fb;
+    }
+    .todo.completed{opacity:.6;}
+    .text{flex:1; font-size:16px;}
+    .upload-btn{
+      background:#ffd6e7;
+      color:#ff69b4;
+      font-size:14px;
+      padding:8px 12px;
+      border-radius:10px;
+      cursor:pointer;
+    }
+    .photo{
+      width:50px;
+      height:50px;
+      object-fit:cover;
+      border-radius:10px;
+      border:2px solid #ff69b4;
+    }
+    .section{
+      margin-top:30px;
+    }
+    .section h2{
+      font-size:20px;
+      color:#ff69b4;
+      margin-bottom:10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>✨ La tua To‑Do List ✨</h1>
+
+    <form id="new-task-form">
+      <input id="new-task" type="text" placeholder="Scrivi una cosa carina da fare…" />
+      <button type="submit">Aggiungi</button>
+    </form>
+
+    <div class="section">
+      <h2>Da fare</h2>
+      <ul id="todo-list"></ul>
+    </div>
+
+    <div class="section">
+      <h2>Completate</h2>
+      <ul id="completed-list"></ul>
+    </div>
+  </div>
+
+  <template id="todo-item-template">
+    <li class="todo">
+      <span class="text"></span>
+      <label class="upload-btn">
+        📷 Aggiungi foto
+        <input type="file" accept="image/*" hidden />
+      </label>
+    </li>
+  </template>
+
+  <template id="completed-item-template">
+    <li class="todo completed">
+      <span class="text"></span>
+      <img class="photo" />
+    </li>
+  </template>
+
+  <script>
+    const STORAGE_KEY = 'todo-with-photos.v1';
+    let tasks = [];
+
+    const els = {
+      form: document.getElementById('new-task-form'),
+      input: document.getElementById('new-task'),
+      list: document.getElementById('todo-list'),
+      completedList: document.getElementById('completed-list'),
+      todoTemplate: document.getElementById('todo-item-template'),
+      completedTemplate: document.getElementById('completed-item-template')
+    };
+
+    function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
+    function load(){
+      try{ tasks = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+      catch{ tasks = []; }
+    }
+
+    function render(){
+      els.list.innerHTML='';
+      els.completedList.innerHTML='';
+      for(const t of tasks){
+        if(!t.completed){
+          const node = els.todoTemplate.content.firstElementChild.cloneNode(true);
+          node.querySelector('.text').textContent = t.text;
+          const fileInput = node.querySelector('input[type="file"]');
+          fileInput.addEventListener('change', (e)=>{
+            const file = e.target.files[0];
+            if(file){
+              const reader = new FileReader();
+              reader.onload = ()=>{
+                t.photo = reader.result;
+                t.completed = true;
+                save();
+                render();
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+          els.list.appendChild(node);
+        } else {
+          const node = els.completedTemplate.content.firstElementChild.cloneNode(true);
+          node.querySelector('.text').textContent = t.text;
+          if(t.photo) node.querySelector('img').src = t.photo;
+          els.completedList.appendChild(node);
+        }
+      }
+    }
+
+    els.form.addEventListener('submit',(e)=>{
+      e.preventDefault();
+      const val = els.input.value.trim();
+      if(!val) return;
+      tasks.unshift({ text: val, completed:false, photo:null });
+      els.input.value='';
+      save();
+      render();
+    });
+
+    load();
+    render();
+
+    // --- Service Worker registration ---
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', ()=>{
+        navigator.serviceWorker.register('sw.js');
+      });
+    }
+  </script>
+</body>
+</html>
